@@ -196,7 +196,7 @@ def get_filter_options():
             "max_beds": int(for_sale_df["beds"].max()),
             "min_baths": int(for_sale_df["full_baths"].min()),
             "max_baths": int(for_sale_df["full_baths"].max()),
-            "neighborhoods": for_sale_df["neighborhoods"].dropna().unique().tolist(),
+            "neighborhoods": neighborhoods,
             "zip_codes": for_sale_df["zip_code"].dropna().unique().tolist(),
         }
 

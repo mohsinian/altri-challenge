@@ -37,7 +37,9 @@ def train_models():
     """Train ML models using sold properties data"""
     try:
         # Load sold properties data
-        sold_df = load_data(os.path.join(parent_dir, "data", "sold_properties.csv"), is_sold=True)
+        sold_df = load_data(
+            os.path.join(parent_dir, "data", "sold_properties.csv"), is_sold=True
+        )
 
         # Validate data
         if not validate_data(sold_df, is_sold=True):
@@ -79,7 +81,7 @@ def score_properties():
     """Score for-sale properties for flipping potential"""
     try:
         logger.debug("Received request to /api/score endpoint")
-        
+
         # Check if models are trained
         logger.debug("Checking if models are trained...")
         if scorer.models.resale_model is None or scorer.models.renovation_model is None:
@@ -90,7 +92,9 @@ def score_properties():
 
         # Load for-sale properties data
         logger.debug("Loading for-sale properties data...")
-        for_sale_df = load_data(os.path.join(parent_dir, "data", "for_sale_properties.csv"), is_sold=False)
+        for_sale_df = load_data(
+            os.path.join(parent_dir, "data", "for_sale_properties.csv"), is_sold=False
+        )
         logger.debug(f"Loaded data with shape: {for_sale_df.shape}")
 
         # Validate data
@@ -162,7 +166,9 @@ def get_property_score(property_id):
             ), 400
 
         # Load for-sale properties data
-        for_sale_df = load_data(os.path.join(parent_dir, "data", "for_sale_properties.csv"), is_sold=False)
+        for_sale_df = load_data(
+            os.path.join(parent_dir, "data", "for_sale_properties.csv"), is_sold=False
+        )
 
         # Find property by ID
         property_data = for_sale_df[for_sale_df["property_id"] == property_id]
@@ -186,9 +192,22 @@ def get_filter_options():
     """Get filter options for the UI"""
     try:
         # Load for-sale properties data
-        for_sale_df = load_data(os.path.join(parent_dir, "data", "for_sale_properties.csv"), is_sold=False)
+        for_sale_df = load_data(
+            os.path.join(parent_dir, "data", "for_sale_properties.csv"), is_sold=False
+        )
+        logger.debug(f"Data loaded with shape: {for_sale_df.shape}")
+        logger.debug(f"Columns in dataframe: {for_sale_df.columns.tolist()}")
 
         # Extract filter options
+        if "neighborhoods" in for_sale_df.columns:
+            neighborhoods = for_sale_df["neighborhoods"].dropna().unique().tolist()
+            logger.debug(
+                f"Found {len(neighborhoods)} neighborhoods: {neighborhoods[:5]}..."
+            )
+        else:
+            logger.error("Column 'neighborhoods' not found in dataframe")
+            neighborhoods = []
+
         filters = {
             "min_price": int(for_sale_df["list_price"].min()),
             "max_price": int(for_sale_df["list_price"].max()),
@@ -200,8 +219,11 @@ def get_filter_options():
             "zip_codes": for_sale_df["zip_code"].dropna().unique().tolist(),
         }
 
+        logger.debug(f"Returning filters: {filters}")
+
         return jsonify(filters)
     except Exception as e:
+        logger.error(f"Error in /api/filters: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 

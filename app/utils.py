@@ -3,34 +3,52 @@ import pandas as pd
 
 def load_data(filepath, is_sold=True):
     """Load data from CSV file and filter out rows with missing critical values"""
-    df = pd.read_csv(filepath)
+    try:
+        print(f"Attempting to load data from: {filepath}")
+        df = pd.read_csv(filepath)
+        print(f"Successfully loaded data from: {filepath}")
 
-    # Log initial data shape and missing values
-    print(f"Initial data shape: {df.shape}")
-    print(f"Missing sqft values: {df['sqft'].isnull().sum()}")
+        # Log initial data shape and missing values
+        print(f"Initial data shape: {df.shape}")
+        print(f"Columns in dataframe: {df.columns.tolist()}")
 
-    # Define critical columns that must have values
-    critical_columns = ["property_id", "sqft"]
-    if is_sold:
-        critical_columns.append("sold_price")
-    else:
-        critical_columns.append("list_price")
+        if "sqft" in df.columns:
+            print(f"Missing sqft values: {df['sqft'].isnull().sum()}")
+        else:
+            print("Column 'sqft' not found in dataframe")
 
-    # Log missing values for all critical columns
-    for col in critical_columns:
-        if col in df.columns:
-            missing_count = df[col].isnull().sum()
-            print(f"Missing {col} values: {missing_count}")
+        # Define critical columns that must have values
+        critical_columns = ["property_id", "sqft"]
+        if is_sold:
+            critical_columns.append("sold_price")
+        else:
+            critical_columns.append("list_price")
 
-    # Filter out rows with missing values in any critical column
-    initial_rows = len(df)
-    df = df.dropna(subset=critical_columns)
-    filtered_rows = len(df)
+        # Log missing values for all critical columns
+        for col in critical_columns:
+            if col in df.columns:
+                missing_count = df[col].isnull().sum()
+                print(f"Missing {col} values: {missing_count}")
+            else:
+                print(f"Column '{col}' not found in dataframe")
 
-    print(f"Filtered out {initial_rows - filtered_rows} rows with missing critical values")
-    print(f"Final data shape: {df.shape}")
+        # Filter out rows with missing values in any critical column
+        initial_rows = len(df)
+        df = df.dropna(subset=critical_columns)
+        filtered_rows = len(df)
 
-    return df
+        print(
+            f"Filtered out {initial_rows - filtered_rows} rows with missing critical values"
+        )
+        print(f"Final data shape: {df.shape}")
+
+        return df
+    except FileNotFoundError:
+        print(f"Error: File not found at path: {filepath}")
+        raise
+    except Exception as e:
+        print(f"Error loading data from {filepath}: {str(e)}")
+        raise
 
 
 def validate_data(df, is_sold=True):

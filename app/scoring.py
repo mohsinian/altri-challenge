@@ -211,6 +211,7 @@ class PropertyScorer:
                 "latitude": property_data.get("latitude", 0),
                 "longitude": property_data.get("longitude", 0),
                 "primary_photo": property_data.get("primary_photo", ""),
+                "neighborhood": property_data.get("neighborhoods", ""),
                 "explanation": self._generate_explanation(
                     roi, risk_score, grade, property_data
                 ),

@@ -1,0 +1,209 @@
+from flask import Flask, request, jsonify, render_template
+import os
+import logging
+from werkzeug.utils import secure_filename
+from app.scoring import PropertyScorer
+from app.models import PropertyModels
+from app.utils import load_data, validate_data
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+app_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(app_dir)
+app = Flask(
+    __name__,
+    template_folder=os.path.join(parent_dir, "web"),
+    static_folder=os.path.join(parent_dir, "web", "static"),
+)
+
+# Use absolute paths for data and models folders
+app.config["UPLOAD_FOLDER"] = os.path.join(parent_dir, "data")
+app.config["MODELS_FOLDER"] = os.path.join(parent_dir, "models")
+
+# Initialize scorer
+scorer = PropertyScorer()
+
+
+@app.route("/")
+def index():
+    """Render the main page"""
+    return render_template("index.html")
+
+
+@app.route("/api/train", methods=["POST"])
+def train_models():
+    """Train ML models using sold properties data"""
+    try:
+        # Load sold properties data
+        sold_df = load_data(os.path.join(parent_dir, "data", "sold_properties.csv"), is_sold=True)
+
+        # Validate data
+        if not validate_data(sold_df, is_sold=True):
+            return jsonify({"error": "Invalid sold properties data"}), 400
+
+        # Train models
+        models = PropertyModels()
+        resale_model = models.train_resale_model(sold_df)
+        renovation_model = models.train_renovation_model(sold_df)
+
+        # Save models
+        if not os.path.exists(app.config["MODELS_FOLDER"]):
+            os.makedirs(app.config["MODELS_FOLDER"])
+
+        models.save_models(app.config["MODELS_FOLDER"])
+
+        # Update scorer with new models
+        scorer.models = models
+
+        return jsonify(
+            {
+                "message": "Models trained successfully",
+                "resale_model_performance": {
+                    "model_type": type(resale_model.named_steps["regressor"]).__name__
+                },
+                "renovation_model_performance": {
+                    "model_type": type(
+                        renovation_model.named_steps["regressor"]
+                    ).__name__
+                },
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/score", methods=["POST"])
+def score_properties():
+    """Score for-sale properties for flipping potential"""
+    try:
+        logger.debug("Received request to /api/score endpoint")
+        
+        # Check if models are trained
+        logger.debug("Checking if models are trained...")
+        if scorer.models.resale_model is None or scorer.models.renovation_model is None:
+            logger.error("Models not trained")
+            return jsonify(
+                {"error": "Models not trained. Please train models first."}
+            ), 400
+
+        # Load for-sale properties data
+        logger.debug("Loading for-sale properties data...")
+        for_sale_df = load_data(os.path.join(parent_dir, "data", "for_sale_properties.csv"), is_sold=False)
+        logger.debug(f"Loaded data with shape: {for_sale_df.shape}")
+
+        # Validate data
+        logger.debug("Validating data...")
+        if not validate_data(for_sale_df, is_sold=False):
+            logger.error("Data validation failed")
+            return jsonify({"error": "Invalid for-sale properties data"}), 400
+
+        # Score properties
+        logger.debug("Scoring properties...")
+        results = scorer.score_properties(for_sale_df)
+        logger.debug(f"Scoring completed. Results count: {len(results)}")
+
+        return jsonify({"properties": results, "count": len(results)})
+    except Exception as e:
+        logger.error(f"Error in /api/score: {str(e)}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/score/upload", methods=["POST"])
+def score_uploaded_properties():
+    """Score uploaded for-sale properties"""
+    try:
+        # Check if models are trained
+        if scorer.models.resale_model is None or scorer.models.renovation_model is None:
+            return jsonify(
+                {"error": "Models not trained. Please train models first."}
+            ), 400
+
+        # Check if file was uploaded
+        if "file" not in request.files:
+            return jsonify({"error": "No file uploaded"}), 400
+
+        file = request.files["file"]
+
+        if file.filename == "":
+            return jsonify({"error": "No file selected"}), 400
+
+        if file and file.filename.endswith(".csv"):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+            file.save(filepath)
+
+            # Load uploaded data
+            for_sale_df = load_data(filepath, is_sold=False)
+
+            # Validate data
+            if not validate_data(for_sale_df, is_sold=False):
+                return jsonify({"error": "Invalid for-sale properties data"}), 400
+
+            # Score properties
+            results = scorer.score_properties(for_sale_df)
+
+            return jsonify({"properties": results, "count": len(results)})
+        else:
+            return jsonify({"error": "Only CSV files are supported"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/property/<property_id>", methods=["GET"])
+def get_property_score(property_id):
+    """Get score for a specific property"""
+    try:
+        # Check if models are trained
+        if scorer.models.resale_model is None or scorer.models.renovation_model is None:
+            return jsonify(
+                {"error": "Models not trained. Please train models first."}
+            ), 400
+
+        # Load for-sale properties data
+        for_sale_df = load_data(os.path.join(parent_dir, "data", "for_sale_properties.csv"), is_sold=False)
+
+        # Find property by ID
+        property_data = for_sale_df[for_sale_df["property_id"] == property_id]
+
+        if property_data.empty:
+            return jsonify({"error": "Property not found"}), 404
+
+        # Score property
+        results = scorer.score_properties(property_data)
+
+        if not results:
+            return jsonify({"error": "Could not score property"}), 500
+
+        return jsonify(results[0])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/filters", methods=["GET"])
+def get_filter_options():
+    """Get filter options for the UI"""
+    try:
+        # Load for-sale properties data
+        for_sale_df = load_data(os.path.join(parent_dir, "data", "for_sale_properties.csv"), is_sold=False)
+
+        # Extract filter options
+        filters = {
+            "min_price": int(for_sale_df["list_price"].min()),
+            "max_price": int(for_sale_df["list_price"].max()),
+            "min_beds": int(for_sale_df["beds"].min()),
+            "max_beds": int(for_sale_df["beds"].max()),
+            "min_baths": int(for_sale_df["full_baths"].min()),
+            "max_baths": int(for_sale_df["full_baths"].max()),
+            "neighborhoods": for_sale_df["neighborhoods"].dropna().unique().tolist(),
+            "zip_codes": for_sale_df["zip_code"].dropna().unique().tolist(),
+        }
+
+        return jsonify(filters)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+if __name__ == "__main__":
+    app.run(debug=True)

@@ -1,0 +1,150 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+}
+
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+.card {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: none;
+    margin-bottom: 20px;
+}
+
+.card-header {
+    background-color: #343a40;
+    color: white;
+    font-weight: bold;
+}
+
+.property-card {
+    cursor: pointer;
+    transition: transform 0.2s;
+    margin-bottom: 15px;
+}
+
+.property-card:hover {
+    transform: translateY(-5px);
+}
+
+.grade-badge {
+    font-size: 1.2rem;
+    font-weight: bold;
+    padding: 5px 10px;
+    border-radius: 4px;
+}
+
+.grade-a {
+    background-color: #28a745;
+    color: white;
+}
+
+.grade-b {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.grade-c {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.grade-d {
+    background-color: #fd7e14;
+    color: white;
+}
+
+.grade-f {
+    background-color: #dc3545;
+    color: white;
+}
+
+.leaflet-popup-content {
+    min-width: 200px;
+}
+
+.property-detail-row {
+    margin-bottom: 10px;
+}
+
+.property-detail-label {
+    font-weight: bold;
+}
+
+.property-detail-value {
+    float: right;
+}
+
+.roi-positive {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.roi-negative {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.risk-low {
+    color: #28a745;
+}
+
+.risk-medium {
+    color: #ffc107;
+}
+
+.risk-high {
+    color: #dc3545;
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top-color: #007bff;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.filter-section {
+    background-color: white;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+#map {
+    border-radius: 5px;
+}
+
+.status-message {
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 10px;
+}
+
+.status-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.status-info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}

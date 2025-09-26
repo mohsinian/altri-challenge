@@ -173,6 +173,7 @@ class PropertyModels:
         best_model = None
         best_score = float("inf")
         best_name = ""
+        model_metrics = {}  # Store metrics for all models
 
         for name, model in models.items():
             # Cross-validation
@@ -183,6 +184,19 @@ class PropertyModels:
 
             print(f"{name}: RMSE = {avg_rmse:.2f}")
 
+            # Fit the model to get test metrics
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            test_rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+            test_r2 = r2_score(y_test, y_pred)
+
+            # Store metrics for this model
+            model_metrics[name] = {
+                "cv_rmse": avg_rmse,
+                "test_rmse": test_rmse,
+                "test_r2": test_r2,
+            }
+
             if avg_rmse < best_score:
                 best_score = avg_rmse
                 best_model = model
@@ -190,7 +204,7 @@ class PropertyModels:
 
         print(f"Best model: {best_name} with RMSE: {best_score:.2f}")
 
-        # Fit the best model
+        # Fit the best model again (it was already fitted above, but this ensures it's properly fitted)
         best_model.fit(X_train, y_train)
 
         # Evaluate on test set
@@ -205,7 +219,8 @@ class PropertyModels:
         self.resale_model = best_model
         self.preprocessor = preprocessor
 
-        return best_model
+        # Return both the best model and all model metrics
+        return best_model, model_metrics
 
     def train_renovation_model(self, sold_df):
         """Train model to estimate renovation costs"""
@@ -284,19 +299,74 @@ class PropertyModels:
             transformers=[("num", numeric_transformer, numeric_features)]
         )
 
-        # Define model
-        model = Pipeline(
-            steps=[
-                ("preprocessor", preprocessor),
-                ("regressor", RandomForestRegressor(random_state=42)),
-            ]
-        )
+        # Define models to try
+        models = {
+            "Linear Regression": Pipeline(
+                steps=[
+                    ("preprocessor", preprocessor),
+                    ("regressor", LinearRegression()),
+                ]
+            ),
+            "Random Forest": Pipeline(
+                steps=[
+                    ("preprocessor", preprocessor),
+                    ("regressor", RandomForestRegressor(random_state=42)),
+                ]
+            ),
+            "Gradient Boosting": Pipeline(
+                steps=[
+                    ("preprocessor", preprocessor),
+                    ("regressor", GradientBoostingRegressor(random_state=42)),
+                ]
+            ),
+            "XGBoost": Pipeline(
+                steps=[
+                    ("preprocessor", preprocessor),
+                    ("regressor", xgb.XGBRegressor(random_state=42)),
+                ]
+            ),
+        }
 
-        # Fit model
-        model.fit(X_train, y_train)
+        # Evaluate models
+        best_model = None
+        best_score = float("inf")
+        best_name = ""
+        model_metrics = {}  # Store metrics for all models
+
+        for name, model in models.items():
+            # Cross-validation
+            cv_scores = cross_val_score(
+                model, X_train, y_train, cv=5, scoring="neg_mean_squared_error"
+            )
+            avg_rmse = np.sqrt(-cv_scores.mean())
+
+            print(f"Renovation {name}: RMSE = ${avg_rmse:.2f}")
+
+            # Fit the model to get test metrics
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            test_rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+            test_r2 = r2_score(y_test, y_pred)
+
+            # Store metrics for this model
+            model_metrics[name] = {
+                "cv_rmse": avg_rmse,
+                "test_rmse": test_rmse,
+                "test_r2": test_r2,
+            }
+
+            if avg_rmse < best_score:
+                best_score = avg_rmse
+                best_model = model
+                best_name = name
+
+        print(f"Best Renovation model: {best_name} with RMSE: ${best_score:.2f}")
+
+        # Fit the best model again (it was already fitted above, but this ensures it's properly fitted)
+        best_model.fit(X_train, y_train)
 
         # Evaluate on test set
-        y_pred = model.predict(X_test)
+        y_pred = best_model.predict(X_test)
         test_rmse = np.sqrt(mean_squared_error(y_test, y_pred))
         test_r2 = r2_score(y_test, y_pred)
 
@@ -304,9 +374,10 @@ class PropertyModels:
         print(f"Renovation Cost Model - Test R²: {test_r2:.2f}")
 
         # Store the model
-        self.renovation_model = model
+        self.renovation_model = best_model
 
-        return model
+        # Return both the best model and all model metrics
+        return best_model, model_metrics
 
     def predict_resale_value(self, property_df):
         """Predict after-renovation resale value"""

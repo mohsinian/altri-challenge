@@ -47,8 +47,8 @@ def train_models():
 
         # Train models
         models = PropertyModels()
-        resale_model = models.train_resale_model(sold_df)
-        renovation_model = models.train_renovation_model(sold_df)
+        resale_model, resale_metrics = models.train_resale_model(sold_df)
+        renovation_model, renovation_metrics = models.train_renovation_model(sold_df)
 
         # Save models
         if not os.path.exists(app.config["MODELS_FOLDER"]):
@@ -63,12 +63,16 @@ def train_models():
             {
                 "message": "Models trained successfully",
                 "resale_model_performance": {
-                    "model_type": type(resale_model.named_steps["regressor"]).__name__
+                    "model_type": type(resale_model.named_steps["regressor"]).__name__,
+                    "best_model": type(resale_model.named_steps["regressor"]).__name__,
+                    "all_models_comparison": resale_metrics,
                 },
                 "renovation_model_performance": {
                     "model_type": type(
                         renovation_model.named_steps["regressor"]
-                    ).__name__
+                    ).__name__,
+                    "best_model": type(renovation_model.named_steps["regressor"]).__name__,
+                    "all_models_comparison": renovation_metrics,
                 },
             }
         )

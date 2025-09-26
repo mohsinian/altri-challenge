@@ -391,11 +391,43 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const data = await response.json();
 
+            // Create detailed model comparison display
+            let resaleComparisonHtml = '<div class="mt-3"><h6>Resale Model Comparison:</h6><div class="table-responsive"><table class="table table-sm table-striped">';
+            resaleComparisonHtml += '<thead><tr><th>Model</th><th>CV RMSE</th><th>Test RMSE</th><th>Test R²</th></tr></thead><tbody>';
+            
+            for (const [modelName, metrics] of Object.entries(data.resale_model_performance.all_models_comparison)) {
+                resaleComparisonHtml += `<tr>
+                    <td>${modelName}</td>
+                    <td>${metrics.cv_rmse.toFixed(2)}</td>
+                    <td>${metrics.test_rmse.toFixed(2)}</td>
+                    <td>${metrics.test_r2.toFixed(4)}</td>
+                </tr>`;
+            }
+            
+            resaleComparisonHtml += '</tbody></table></div></div>';
+            
+            // Create renovation model comparison display
+            let renovationComparisonHtml = '<div class="mt-3"><h6>Renovation Model Comparison:</h6><div class="table-responsive"><table class="table table-sm table-striped">';
+            renovationComparisonHtml += '<thead><tr><th>Model</th><th>CV RMSE</th><th>Test RMSE</th><th>Test R²</th></tr></thead><tbody>';
+            
+            for (const [modelName, metrics] of Object.entries(data.renovation_model_performance.all_models_comparison)) {
+                renovationComparisonHtml += `<tr>
+                    <td>${modelName}</td>
+                    <td>$${metrics.cv_rmse.toFixed(2)}</td>
+                    <td>$${metrics.test_rmse.toFixed(2)}</td>
+                    <td>${metrics.test_r2.toFixed(4)}</td>
+                </tr>`;
+            }
+            
+            renovationComparisonHtml += '</tbody></table></div></div>';
+
             trainStatus.innerHTML = `
                 <div class="status-message status-success">
                     <strong>Success!</strong> Models trained successfully.
-                    <br>Resale Model: ${data.resale_model_performance.model_type}
-                    <br>Renovation Model: ${data.renovation_model_performance.model_type}
+                    <p><strong>Best Resale Model:</strong> ${data.resale_model_performance.best_model}</p>
+                    ${resaleComparisonHtml}
+                    <p><strong>Best Renovation Model:</strong> ${data.renovation_model_performance.best_model}</p>
+                    ${renovationComparisonHtml}
                 </div>
             `;
 

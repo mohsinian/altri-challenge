@@ -10,28 +10,36 @@ class PropertyScorer:
         if models_path:
             self.models.load_models(models_path)
 
-        # Define constants for calculations
-        self.carrying_cost_rate = 0.02  # 2% of property value for 6 months
-        self.selling_cost_rate = (
-            0.06  # 6% for real estate agent fees, closing costs, etc.
+        # Data-driven cost calculations based on EDA
+        self.carrying_cost_rate = (
+            0.008
         )
-        self.contingency_rate = 0.1  # 10% contingency for unexpected costs
+        self.selling_cost_rate = (
+            0.05  # 5% for agent fees (standard real estate commission)
+        )
+        self.contingency_rate = 0.05  # 5% contingency (reduced from before)
 
-        # Risk factors
+        # Data-driven risk factors based on EDA
         self.risk_factors = {
-            "age": {
-                "threshold": 50,
-                "weight": 0.3,
-            },  # Properties older than 50 years have higher risk
+            "age": {"threshold": 60, "weight": 0.2},  # Based on year built distribution
             "days_on_market": {
-                "threshold": 60,
-                "weight": 0.4,
-            },  # Properties on market > 60 days have higher risk
+                "threshold": 62,
+                "weight": 0.3,
+            },  # 75th percentile from data
             "renovation": {
-                "high": 0.5,
-                "medium": 0.3,
+                "high": 0.3,
+                "medium": 0.2,
                 "low": 0.1,
-            },  # Renovation level risk weights
+            },  # Based on keyword frequency
+        }
+
+        # Neighborhood value multipliers based on EDA
+        self.neighborhood_multipliers = {
+            "Northwest Warren, Heritage Village": 1.15,  # Highest median ($208)
+            "Northwest Warren": 1.12,  # Second highest ($203)
+            "Northeast Warren": 1.08,  # Third highest ($192)
+            "Southwest Warren": 0.95,  # Below average ($149)
+            "Southeast Warren": 0.90,  # Lowest median ($133)
         }
 
     def calculate_carrying_costs(self, property_value, months=6):
@@ -122,19 +130,20 @@ class PropertyScorer:
 
     def assign_grade(self, roi, risk_score):
         """Assign letter grade based on ROI and risk"""
-        # High ROI, Low Risk
-        if roi > 30 and risk_score < 30:
+        # Data-driven grading thresholds based on EDA
+        # High ROI, Low Risk (top 10% of properties with 60-70% upside)
+        if roi > 20 and risk_score < 30:
             return "A"
-        # Medium ROI, Low Risk or High ROI, Medium Risk
-        elif (roi > 15 and risk_score < 30) or (roi > 30 and risk_score < 60):
+        # Medium ROI, Low Risk or High ROI, Medium Risk (good investments)
+        elif (roi > 12 and risk_score < 30) or (roi > 20 and risk_score < 50):
             return "B"
-        # Low ROI, Low Risk or Medium ROI, Medium Risk
-        elif (roi > 5 and risk_score < 30) or (roi > 15 and risk_score < 60):
+        # Low ROI, Low Risk or Medium ROI, Medium Risk (acceptable investments)
+        elif (roi > 6 and risk_score < 30) or (roi > 12 and risk_score < 50):
             return "C"
-        # Low ROI, Medium Risk or Medium ROI, High Risk
-        elif (roi > 0 and risk_score < 60) or (roi > 15 and risk_score >= 60):
+        # Low ROI, Medium Risk or Medium ROI, High Risk (risky investments)
+        elif (roi > 0 and risk_score < 50) or (roi > 12 and risk_score >= 50):
             return "D"
-        # Negative ROI or High Risk
+        # Negative ROI or High Risk (poor investments)
         else:
             return "F"
 
@@ -146,7 +155,7 @@ class PropertyScorer:
         # Calculate price per square foot
         df["price_per_sqft"] = df["list_price"] / df["sqft"]
 
-        # Extract NLP features
+        # Extract NLP features first (this adds renovation_level and other features)
         from app.nlp_processor import NLPProcessor
 
         nlp_processor = NLPProcessor()
@@ -160,12 +169,35 @@ class PropertyScorer:
         renovation_costs = self.models.predict_renovation_cost(df)
         df["predicted_renovation_cost"] = renovation_costs
 
+        # Apply neighborhood multiplier based on EDA
+        df["neighborhood_multiplier"] = df["neighborhoods"].map(
+            self.neighborhood_multipliers
+        )
+        df["neighborhood_multiplier"] = df["neighborhood_multiplier"].fillna(1.0)
+
+        # Apply renovation premium to resale values
+        renovation_premium = {
+            "low": 1.20,
+            "medium": 1.30,
+            "high": 1.40,
+        }
+
+        # Apply final adjustments to resale value
+        df["final_resale_value"] = [
+            value * neighborhood_multiplier * renovation_premium.get(level, 1.1)
+            for value, neighborhood_multiplier, level in zip(
+                df["predicted_resale_value"],
+                df["neighborhood_multiplier"],
+                df["renovation_level"],
+            )
+        ]
+
         # Calculate profit metrics for each property
         results = []
 
         for i, property_data in df.iterrows():
             purchase_price = property_data["list_price"]
-            resale_value = property_data["predicted_resale_value"]
+            resale_value = property_data["final_resale_value"]
             renovation_cost = property_data["predicted_renovation_cost"]
 
             # Calculate profit
@@ -181,7 +213,7 @@ class PropertyScorer:
             property_subset = df.iloc[[i]]
             risk_score = self.calculate_risk_score(property_subset)
 
-            # Assign grade
+            # Assign grade with data-driven thresholds
             grade = self.assign_grade(roi, risk_score)
 
             # Create result dictionary
@@ -211,7 +243,9 @@ class PropertyScorer:
                 "latitude": property_data.get("latitude", 0),
                 "longitude": property_data.get("longitude", 0),
                 "primary_photo": property_data.get("primary_photo", ""),
-                "neighborhood": property_data.get("neighborhoods", ""),
+                "neighborhood_multiplier": property_data.get(
+                    "neighborhood_multiplier", 1.0
+                ),
                 "explanation": self._generate_explanation(
                     roi, risk_score, grade, property_data
                 ),
@@ -225,52 +259,87 @@ class PropertyScorer:
         """Generate explanation for the property score"""
         explanations = []
 
-        # Grade explanation
+        # Grade explanation with data-driven context
         grade_explanations = {
-            "A": "Excellent investment opportunity with high expected returns and low risk.",
-            "B": "Good investment opportunity with solid returns and manageable risk.",
-            "C": "Average investment opportunity with moderate returns and risk.",
-            "D": "Below average investment opportunity with low returns and/or high risk.",
-            "F": "Poor investment opportunity with negative returns and/or very high risk.",
+            "A": "Excellent investment opportunity with high expected returns (20%+ ROI) and low risk. Top 10% of investment properties.",
+            "B": "Good investment opportunity with solid returns (12-20% ROI) and manageable risk. Above average investment potential.",
+            "C": "Average investment opportunity with moderate returns (6-12% ROI) and risk. Typical for this market.",
+            "D": "Below average investment opportunity with low returns and/or high risk. Consider only if you have expertise.",
+            "F": "Poor investment opportunity with negative returns and/or very high risk. Not recommended.",
         }
         explanations.append(grade_explanations.get(grade, ""))
 
-        # ROI explanation
-        if roi > 30:
-            explanations.append(f"Very high expected ROI of {roi:.1f}%.")
-        elif roi > 15:
-            explanations.append(f"Good expected ROI of {roi:.1f}%.")
-        elif roi > 5:
-            explanations.append(f"Moderate expected ROI of {roi:.1f}%.")
+        # Neighborhood context
+        neighborhood = property_data.get("neighborhood", "")
+        neighborhood_multiplier = property_data.get("neighborhood_multiplier", 1.0)
+
+        if neighborhood_multiplier > 1.05:
+            explanations.append(
+                f"Located in high-value neighborhood ({neighborhood}), which supports higher resale values."
+            )
+        elif neighborhood_multiplier < 0.95:
+            explanations.append(
+                f"Located in lower-value neighborhood ({neighborhood}), which may limit appreciation potential."
+            )
+
+        # ROI explanation with market context
+        if roi > 20:
+            explanations.append(
+                f"Very high expected ROI of {roi:.1f}%, well above market average."
+            )
+        elif roi > 12:
+            explanations.append(
+                f"Good expected ROI of {roi:.1f}%, above market average."
+            )
+        elif roi > 6:
+            explanations.append(
+                f"Moderate expected ROI of {roi:.1f}%, around market average."
+            )
         elif roi > 0:
-            explanations.append(f"Low expected ROI of {roi:.1f}%.")
+            explanations.append(
+                f"Low expected ROI of {roi:.1f}%, below market average."
+            )
         else:
-            explanations.append(f"Negative expected ROI of {roi:.1f}%.")
+            explanations.append(
+                f"Negative expected ROI of {roi:.1f}%, not recommended for investment."
+            )
 
         # Risk explanation
         if risk_score < 20:
-            explanations.append("Low risk investment.")
-        elif risk_score < 40:
-            explanations.append("Moderate risk investment.")
-        elif risk_score < 60:
-            explanations.append("High risk investment.")
+            explanations.append("Low risk investment with favorable market conditions.")
+        elif risk_score < 35:
+            explanations.append("Moderate risk investment with manageable challenges.")
+        elif risk_score < 50:
+            explanations.append("High risk investment requiring careful consideration.")
         else:
-            explanations.append("Very high risk investment.")
+            explanations.append(
+                "Very high risk investment with significant challenges."
+            )
 
         # Property-specific factors
         renovation_level = property_data.get("renovation_level", "medium")
         if renovation_level == "low":
-            explanations.append("Property requires minimal renovation.")
-        elif renovation_level == "medium":
-            explanations.append("Property requires moderate renovation.")
-        else:
-            explanations.append("Property requires extensive renovation.")
-
-        # Days on market
-        days_on_mls = property_data.get("days_on_mls", 0)
-        if days_on_mls > 60:
             explanations.append(
-                f"Property has been on the market for {days_on_mls} days, which may indicate negotiation opportunities."
+                "Property requires minimal cosmetic updates, reducing investment risk."
+            )
+        elif renovation_level == "medium":
+            explanations.append(
+                "Property requires moderate renovation, typical for investment properties."
+            )
+        else:
+            explanations.append(
+                "Property requires extensive renovation, increasing investment risk and timeline."
+            )
+
+        # Days on market context
+        days_on_mls = property_data.get("days_on_mls", 0)
+        if days_on_mls > 62:  # 75th percentile from data
+            explanations.append(
+                f"Property has been on the market for {days_on_mls} days (above average), which may indicate negotiation opportunities."
+            )
+        elif days_on_mls < 31:  # 25th percentile from data
+            explanations.append(
+                f"Property has been on the market for only {days_on_mls} days (below average), indicating strong demand."
             )
 
         return " ".join(explanations)

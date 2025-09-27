@@ -1,4 +1,8 @@
 import pandas as pd
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+import xgboost as xgb
 
 
 def load_data(filepath, is_sold=True):
@@ -131,6 +135,37 @@ def clean_data(df):
         df_clean["stories"] = df_clean["stories"].fillna(1)
 
     return df_clean
+
+
+def create_model_pipelines(preprocessor):
+    """Create a dictionary of model pipelines with the given preprocessor"""
+    models = {
+        "Linear Regression": Pipeline(
+            steps=[
+                ("preprocessor", preprocessor),
+                ("regressor", LinearRegression()),
+            ]
+        ),
+        "Random Forest": Pipeline(
+            steps=[
+                ("preprocessor", preprocessor),
+                ("regressor", RandomForestRegressor(random_state=42)),
+            ]
+        ),
+        "Gradient Boosting": Pipeline(
+            steps=[
+                ("preprocessor", preprocessor),
+                ("regressor", GradientBoostingRegressor(random_state=42)),
+            ]
+        ),
+        "XGBoost": Pipeline(
+            steps=[
+                ("preprocessor", preprocessor),
+                ("regressor", xgb.XGBRegressor(random_state=42)),
+            ]
+        ),
+    }
+    return models
 
 
 def preprocess_for_model(df, is_sold=True):

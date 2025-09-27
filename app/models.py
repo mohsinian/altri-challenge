@@ -3,21 +3,20 @@ from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
-import xgboost as xgb
 import joblib
 import os
-from app.nlp_processor import NLPProcessor
+from app.utils import create_model_pipelines
 
 
 class PropertyModels:
     def __init__(self):
         import logging
+
         logger = logging.getLogger(__name__)
         logger.info("MODELS: Getting NLPProcessor instance in PropertyModels")
         from app.nlp_processor import get_nlp_processor
+
         self.nlp_processor = get_nlp_processor()
         self.resale_model = None
         self.renovation_model = None
@@ -146,33 +145,8 @@ class PropertyModels:
             ]
         )
 
-        # Define models to try
-        models = {
-            "Linear Regression": Pipeline(
-                steps=[
-                    ("preprocessor", preprocessor),
-                    ("regressor", LinearRegression()),
-                ]
-            ),
-            "Random Forest": Pipeline(
-                steps=[
-                    ("preprocessor", preprocessor),
-                    ("regressor", RandomForestRegressor(random_state=42)),
-                ]
-            ),
-            "Gradient Boosting": Pipeline(
-                steps=[
-                    ("preprocessor", preprocessor),
-                    ("regressor", GradientBoostingRegressor(random_state=42)),
-                ]
-            ),
-            "XGBoost": Pipeline(
-                steps=[
-                    ("preprocessor", preprocessor),
-                    ("regressor", xgb.XGBRegressor(random_state=42)),
-                ]
-            ),
-        }
+        # Create model pipelines using helper function
+        models = create_model_pipelines(preprocessor)
 
         # Evaluate models
         best_model = None
@@ -304,33 +278,8 @@ class PropertyModels:
             transformers=[("num", numeric_transformer, numeric_features)]
         )
 
-        # Define models to try
-        models = {
-            "Linear Regression": Pipeline(
-                steps=[
-                    ("preprocessor", preprocessor),
-                    ("regressor", LinearRegression()),
-                ]
-            ),
-            "Random Forest": Pipeline(
-                steps=[
-                    ("preprocessor", preprocessor),
-                    ("regressor", RandomForestRegressor(random_state=42)),
-                ]
-            ),
-            "Gradient Boosting": Pipeline(
-                steps=[
-                    ("preprocessor", preprocessor),
-                    ("regressor", GradientBoostingRegressor(random_state=42)),
-                ]
-            ),
-            "XGBoost": Pipeline(
-                steps=[
-                    ("preprocessor", preprocessor),
-                    ("regressor", xgb.XGBRegressor(random_state=42)),
-                ]
-            ),
-        }
+        # Create model pipelines using helper function
+        models = create_model_pipelines(preprocessor)
 
         # Evaluate models
         best_model = None
@@ -396,9 +345,12 @@ class PropertyModels:
         if "renovation_level_numeric" not in df.columns:
             from app.nlp_processor import get_nlp_processor
             import logging
+
             logger = logging.getLogger(__name__)
-            
-            logger.info("MODELS: Getting fallback NLPProcessor instance in predict_resale_value")
+
+            logger.info(
+                "MODELS: Getting fallback NLPProcessor instance in predict_resale_value"
+            )
             nlp_processor = get_nlp_processor()
             df = nlp_processor.extract_features(df)
             logger.info("MODELS: Fallback NLP feature extraction completed")
@@ -465,9 +417,12 @@ class PropertyModels:
         if "renovation_level_numeric" not in df.columns:
             from app.nlp_processor import get_nlp_processor
             import logging
+
             logger = logging.getLogger(__name__)
-            
-            logger.info("MODELS: Getting fallback NLPProcessor instance in predict_renovation_cost")
+
+            logger.info(
+                "MODELS: Getting fallback NLPProcessor instance in predict_renovation_cost"
+            )
             nlp_processor = get_nlp_processor()
             df = nlp_processor.extract_features(df)
             logger.info("MODELS: Fallback NLP feature extraction completed")

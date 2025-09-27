@@ -136,16 +136,16 @@ class PropertyScorer:
         """Assign letter grade based on ROI and risk"""
         # Data-driven grading thresholds based on EDA
         # High ROI, Low Risk (top 10% of properties with 60-70% upside)
-        if roi > 20 and risk_score < 30:
+        if roi > 18 and risk_score < 35:
             return "A"
         # Medium ROI, Low Risk or High ROI, Medium Risk (good investments)
-        elif (roi > 12 and risk_score < 30) or (roi > 20 and risk_score < 50):
+        elif (roi > 10 and risk_score < 35) or (roi > 18 and risk_score < 55):
             return "B"
         # Low ROI, Low Risk or Medium ROI, Medium Risk (acceptable investments)
-        elif (roi > 6 and risk_score < 30) or (roi > 12 and risk_score < 50):
+        elif (roi > 5 and risk_score < 35) or (roi > 10 and risk_score < 55):
             return "C"
         # Low ROI, Medium Risk or Medium ROI, High Risk (risky investments)
-        elif (roi > 0 and risk_score < 50) or (roi > 12 and risk_score >= 50):
+        elif (roi > 0 and risk_score < 50) or (roi > 10 and risk_score >= 55):
             return "D"
         # Negative ROI or High Risk (poor investments)
         else:

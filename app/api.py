@@ -62,7 +62,7 @@ def train_models():
 
         # Update scorer with new models
         scorer.models = models
-        
+
         # Clear the cache since models have been updated
         global _scored_properties_cache, _cache_timestamp
         _scored_properties_cache = None
@@ -81,7 +81,9 @@ def train_models():
                     "model_type": type(
                         renovation_model.named_steps["regressor"]
                     ).__name__,
-                    "best_model": type(renovation_model.named_steps["regressor"]).__name__,
+                    "best_model": type(
+                        renovation_model.named_steps["regressor"]
+                    ).__name__,
                     "all_models_comparison": renovation_metrics,
                 },
             }
@@ -94,7 +96,7 @@ def train_models():
 def score_properties():
     """Score for-sale properties for flipping potential"""
     global _scored_properties_cache, _cache_timestamp
-    
+
     try:
         logger.info("API: /api/score endpoint called")
         logger.debug("Received request to /api/score endpoint")
@@ -113,21 +115,35 @@ def score_properties():
             # Log sample property structure from cache
             if _scored_properties_cache and len(_scored_properties_cache) > 0:
                 sample_property = _scored_properties_cache[0]
-                logger.info(f"Sample cached property keys: {list(sample_property.keys())}")
-                logger.info(f"Sample cached property neighborhood value: {sample_property.get('neighborhoods', 'NOT_FOUND')}")
-            return jsonify({"properties": _scored_properties_cache, "count": len(_scored_properties_cache), "cached": True})
+                logger.info(
+                    f"Sample cached property keys: {list(sample_property.keys())}"
+                )
+                logger.info(
+                    f"Sample cached property neighborhood value: {sample_property.get('neighborhoods', 'NOT_FOUND')}"
+                )
+            return jsonify(
+                {
+                    "properties": _scored_properties_cache,
+                    "count": len(_scored_properties_cache),
+                    "cached": True,
+                }
+            )
 
         # Load for-sale properties data
-        logger.info("API: No cache found, scoring properties (this will trigger NLP processing)")
+        logger.info(
+            "API: No cache found, scoring properties (this will trigger NLP processing)"
+        )
         logger.debug("Loading for-sale properties data...")
         for_sale_df = load_data(
             os.path.join(parent_dir, "data", "for_sale_properties.csv"), is_sold=False
         )
         logger.debug(f"Loaded data with shape: {for_sale_df.shape}")
-        
+
         # Log unique neighborhoods in the data
         if "neighborhoods" in for_sale_df.columns:
-            unique_neighborhoods = for_sale_df["neighborhoods"].dropna().unique().tolist()
+            unique_neighborhoods = (
+                for_sale_df["neighborhoods"].dropna().unique().tolist()
+            )
             logger.info(f"Unique neighborhoods in data: {unique_neighborhoods}")
 
         # Validate data
@@ -140,16 +156,19 @@ def score_properties():
         logger.debug("Scoring properties...")
         results = scorer.score_properties(for_sale_df)
         logger.debug(f"Scoring completed. Results count: {len(results)}")
-        
+
         # Log sample property structure
         if results and len(results) > 0:
             sample_property = results[0]
             logger.info(f"Sample property keys: {list(sample_property.keys())}")
-            logger.info(f"Sample property neighborhood value: {sample_property.get('neighborhoods', 'NOT_FOUND')}")
-        
+            logger.info(
+                f"Sample property neighborhood value: {sample_property.get('neighborhoods', 'NOT_FOUND')}"
+            )
+
         # Cache the results
         _scored_properties_cache = results
         import time
+
         _cache_timestamp = time.time()
         logger.info(f"API: Results cached at timestamp {_cache_timestamp}")
 

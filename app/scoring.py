@@ -15,9 +15,7 @@ class PropertyScorer:
             self.models.load_models(models_path)
 
         # Data-driven cost calculations based on EDA
-        self.carrying_cost_rate = (
-            0.008
-        )
+        self.carrying_cost_rate = 0.008
         self.selling_cost_rate = (
             0.05  # 5% for agent fees (standard real estate commission)
         )
@@ -257,11 +255,13 @@ class PropertyScorer:
             }
 
             results.append(result)
-        
+
         # Log sample result for debugging
         if results:
             logger.info(f"Sample scored property keys: {list(results[0].keys())}")
-            logger.info(f"Sample scored property neighborhood value: {results[0].get('neighborhoods', 'NOT_FOUND')}")
+            logger.info(
+                f"Sample scored property neighborhood value: {results[0].get('neighborhoods', 'NOT_FOUND')}"
+            )
 
         return results
 

@@ -20,6 +20,7 @@ _nltk_resources_downloaded = False
 _spacy_model_loaded = None
 _nlp_processor_instance = None
 
+
 def download_nltk_resources():
     """Download NLTK resources only once"""
     global _nltk_resources_downloaded
@@ -37,13 +38,16 @@ def download_nltk_resources():
     else:
         logger.info("MODULE LEVEL: NLTK resources already downloaded, skipping")
 
+
 def get_spacy_model():
     """Load spaCy model only once"""
     global _spacy_model_loaded
     if _spacy_model_loaded is None:
         logger.info("MODULE LEVEL: Loading spaCy model...")
         try:
-            _spacy_model_loaded = spacy.load("en_core_web_sm", disable=["parser", "ner"])
+            _spacy_model_loaded = spacy.load(
+                "en_core_web_sm", disable=["parser", "ner"]
+            )
             logger.info("MODULE LEVEL: spaCy model loaded successfully")
         except Exception as e:
             logger.error(f"MODULE LEVEL: Error loading spaCy model: {e}")
@@ -51,6 +55,7 @@ def get_spacy_model():
     else:
         logger.info("MODULE LEVEL: spaCy model already loaded, reusing")
     return _spacy_model_loaded
+
 
 # Initialize resources
 download_nltk_resources()
@@ -67,6 +72,7 @@ def get_nlp_processor():
     else:
         logger.info("NLPProcessor SINGLETON: Reusing existing NLPProcessor instance")
     return _nlp_processor_instance
+
 
 class NLPProcessor:
     def __init__(self):
@@ -222,7 +228,6 @@ class NLPProcessor:
         except (ValueError, RuntimeError, KeyError) as e:
             print(f"Error in sentiment analysis: {e}")
             return 0
-
 
     def extract_features(self, df):
         """Extract NLP features from property descriptions"""

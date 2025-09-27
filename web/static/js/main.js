@@ -93,7 +93,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // Load properties
     async function loadProperties() {
         try {
-            propertyList.innerHTML = '<p class="text-center"><span class="loading-spinner"></span> Loading properties...</p>';
+            // Only show loading spinner if we don't have properties yet
+            if (properties.length === 0) {
+                propertyList.innerHTML = '<p class="text-center"><span class="loading-spinner"></span> Loading properties...</p>';
+            }
 
             const response = await fetch('/api/score', {
                 method: 'POST',
@@ -108,6 +111,14 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const data = await response.json();
+            
+            // Log whether we got cached results
+            if (data.cached) {
+                console.log('Using cached properties data');
+            } else {
+                console.log('Fresh properties data loaded');
+            }
+            
             properties = data.properties;
             filteredProperties = [...properties];
 

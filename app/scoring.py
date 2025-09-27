@@ -1,6 +1,10 @@
 import pandas as pd
 from datetime import datetime
+import logging
 from app.models import PropertyModels
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 
 class PropertyScorer:
@@ -156,9 +160,9 @@ class PropertyScorer:
         df["price_per_sqft"] = df["list_price"] / df["sqft"]
 
         # Extract NLP features first (this adds renovation_level and other features)
-        from app.nlp_processor import NLPProcessor
+        from app.nlp_processor import get_nlp_processor
 
-        nlp_processor = NLPProcessor()
+        nlp_processor = get_nlp_processor()
         df = nlp_processor.extract_features(df)
 
         # Predict resale value

@@ -15,26 +15,66 @@ logger = logging.getLogger(__name__)
 
 warnings.filterwarnings("ignore")
 
-# Download NLTK resources with error handling
-try:
-    logger.info("Downloading NLTK resources...")
-    nltk.download("punkt", quiet=True)
-    nltk.download("stopwords", quiet=True)
-    nltk.download("wordnet", quiet=True)
-    nltk.download("punkt_tab", quiet=True)  # Add the missing resource
-    logger.info("NLTK resources downloaded successfully")
-except Exception as e:
-    logger.error(f"Error downloading NLTK resources: {e}")
+# Global variables for caching NLP resources
+_nltk_resources_downloaded = False
+_spacy_model_loaded = None
+_nlp_processor_instance = None
 
-# Load spaCy model
-nlp = spacy.load("en_core_web_sm", disable=["parser", "ner"])
+def download_nltk_resources():
+    """Download NLTK resources only once"""
+    global _nltk_resources_downloaded
+    if not _nltk_resources_downloaded:
+        logger.info("MODULE LEVEL: Downloading NLTK resources...")
+        try:
+            nltk.download("punkt", quiet=True)
+            nltk.download("stopwords", quiet=True)
+            nltk.download("wordnet", quiet=True)
+            nltk.download("punkt_tab", quiet=True)  # Add the missing resource
+            _nltk_resources_downloaded = True
+            logger.info("MODULE LEVEL: NLTK resources downloaded successfully")
+        except Exception as e:
+            logger.error(f"MODULE LEVEL: Error downloading NLTK resources: {e}")
+    else:
+        logger.info("MODULE LEVEL: NLTK resources already downloaded, skipping")
 
+def get_spacy_model():
+    """Load spaCy model only once"""
+    global _spacy_model_loaded
+    if _spacy_model_loaded is None:
+        logger.info("MODULE LEVEL: Loading spaCy model...")
+        try:
+            _spacy_model_loaded = spacy.load("en_core_web_sm", disable=["parser", "ner"])
+            logger.info("MODULE LEVEL: spaCy model loaded successfully")
+        except Exception as e:
+            logger.error(f"MODULE LEVEL: Error loading spaCy model: {e}")
+            raise
+    else:
+        logger.info("MODULE LEVEL: spaCy model already loaded, reusing")
+    return _spacy_model_loaded
+
+# Initialize resources
+download_nltk_resources()
+nlp = get_spacy_model()
+
+
+def get_nlp_processor():
+    """Get a singleton instance of NLPProcessor"""
+    global _nlp_processor_instance
+    if _nlp_processor_instance is None:
+        logger.info("NLPProcessor SINGLETON: Creating new NLPProcessor instance")
+        _nlp_processor_instance = NLPProcessor()
+        logger.info("NLPProcessor SINGLETON: NLPProcessor instance created and cached")
+    else:
+        logger.info("NLPProcessor SINGLETON: Reusing existing NLPProcessor instance")
+    return _nlp_processor_instance
 
 class NLPProcessor:
     def __init__(self):
+        logger.info("NLPProcessor INSTANCE: Creating new NLPProcessor instance")
         self.lemmatizer = WordNetLemmatizer()
         self.stop_words = set(stopwords.words("english"))
         self.sentiment_pipeline = pipeline("sentiment-analysis")
+        logger.info("NLPProcessor INSTANCE: NLPProcessor instance created successfully")
 
         # Renovation keywords
         self.renovation_keywords = {

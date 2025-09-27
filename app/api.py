@@ -10,6 +10,10 @@ from app.utils import load_data, validate_data
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+# Global cache for scored properties
+_scored_properties_cache = None
+_cache_timestamp = None
+
 app_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(app_dir)
 app = Flask(
@@ -58,6 +62,12 @@ def train_models():
 
         # Update scorer with new models
         scorer.models = models
+        
+        # Clear the cache since models have been updated
+        global _scored_properties_cache, _cache_timestamp
+        _scored_properties_cache = None
+        _cache_timestamp = None
+        logger.info("API: Cache cleared after model training")
 
         return jsonify(
             {
@@ -83,7 +93,10 @@ def train_models():
 @app.route("/api/score", methods=["POST"])
 def score_properties():
     """Score for-sale properties for flipping potential"""
+    global _scored_properties_cache, _cache_timestamp
+    
     try:
+        logger.info("API: /api/score endpoint called")
         logger.debug("Received request to /api/score endpoint")
 
         # Check if models are trained
@@ -94,7 +107,13 @@ def score_properties():
                 {"error": "Models not trained. Please train models first."}
             ), 400
 
+        # Check if we have cached results
+        if _scored_properties_cache is not None:
+            logger.info("API: Returning cached scored properties")
+            return jsonify({"properties": _scored_properties_cache, "count": len(_scored_properties_cache), "cached": True})
+
         # Load for-sale properties data
+        logger.info("API: No cache found, scoring properties (this will trigger NLP processing)")
         logger.debug("Loading for-sale properties data...")
         for_sale_df = load_data(
             os.path.join(parent_dir, "data", "for_sale_properties.csv"), is_sold=False
@@ -111,8 +130,14 @@ def score_properties():
         logger.debug("Scoring properties...")
         results = scorer.score_properties(for_sale_df)
         logger.debug(f"Scoring completed. Results count: {len(results)}")
+        
+        # Cache the results
+        _scored_properties_cache = results
+        import time
+        _cache_timestamp = time.time()
+        logger.info(f"API: Results cached at timestamp {_cache_timestamp}")
 
-        return jsonify({"properties": results, "count": len(results)})
+        return jsonify({"properties": results, "count": len(results), "cached": False})
     except Exception as e:
         logger.error(f"Error in /api/score: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
@@ -228,6 +253,20 @@ def get_filter_options():
         return jsonify(filters)
     except Exception as e:
         logger.error(f"Error in /api/filters: {str(e)}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/cache/clear", methods=["POST"])
+def clear_cache():
+    """Clear the scored properties cache"""
+    global _scored_properties_cache, _cache_timestamp
+    try:
+        logger.info("API: Clearing scored properties cache")
+        _scored_properties_cache = None
+        _cache_timestamp = None
+        return jsonify({"message": "Cache cleared successfully"})
+    except Exception as e:
+        logger.error(f"Error clearing cache: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 

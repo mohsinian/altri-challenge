@@ -14,11 +14,16 @@ from app.nlp_processor import NLPProcessor
 
 class PropertyModels:
     def __init__(self):
-        self.nlp_processor = NLPProcessor()
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info("MODELS: Getting NLPProcessor instance in PropertyModels")
+        from app.nlp_processor import get_nlp_processor
+        self.nlp_processor = get_nlp_processor()
         self.resale_model = None
         self.renovation_model = None
         self.preprocessor = None
         self.feature_columns = None
+        logger.info("MODELS: PropertyModels initialized with NLPProcessor")
 
     def prepare_features(self, df, is_sold=True):
         """Prepare features for model training or prediction"""
@@ -389,10 +394,14 @@ class PropertyModels:
 
         # NLP features should already be extracted, but check if they exist
         if "renovation_level_numeric" not in df.columns:
-            from app.nlp_processor import NLPProcessor
-
-            nlp_processor = NLPProcessor()
+            from app.nlp_processor import get_nlp_processor
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            logger.info("MODELS: Getting fallback NLPProcessor instance in predict_resale_value")
+            nlp_processor = get_nlp_processor()
             df = nlp_processor.extract_features(df)
+            logger.info("MODELS: Fallback NLP feature extraction completed")
 
         # Calculate price per square foot if not already calculated
         if "price_per_sqft" not in df.columns:
@@ -454,10 +463,14 @@ class PropertyModels:
 
         # NLP features should already be extracted, but check if they exist
         if "renovation_level_numeric" not in df.columns:
-            from app.nlp_processor import NLPProcessor
-
-            nlp_processor = NLPProcessor()
+            from app.nlp_processor import get_nlp_processor
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            logger.info("MODELS: Getting fallback NLPProcessor instance in predict_renovation_cost")
+            nlp_processor = get_nlp_processor()
             df = nlp_processor.extract_features(df)
+            logger.info("MODELS: Fallback NLP feature extraction completed")
 
         # Calculate neighborhood median values (same as used in training)
         neighborhood_medians = {

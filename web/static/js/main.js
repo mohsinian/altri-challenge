@@ -367,17 +367,30 @@ document.addEventListener('DOMContentLoaded', function () {
         const neighborhood = neighborhoodSelect.value;
         const renovation = renovationSelect.value;
 
+        console.log('Applying filters with neighborhood:', neighborhood);
+        console.log('Sample property structure:', properties[0]);
+        console.log('Neighborhood field in sample property:', properties[0] ? properties[0].neighborhoods : 'undefined');
+        console.log('Neighborhood field (singular) in sample property:', properties[0] ? properties[0].neighborhood : 'undefined');
+
         filteredProperties = properties.filter(property => {
+            // Check both 'neighborhoods' (plural) and 'neighborhood' (singular) for debugging
+            const propertyNeighborhood = property.neighborhoods || property.neighborhood;
+            console.log(`Property ${property.property_id}: neighborhood value = ${propertyNeighborhood}, filter value = ${neighborhood}`);
+            
+            const neighborhoodMatch = neighborhood === '' || propertyNeighborhood === neighborhood;
+            console.log(`Neighborhood match: ${neighborhoodMatch}`);
+            
             return property.list_price >= minPrice &&
                 property.list_price <= maxPrice &&
                 property.beds >= beds &&
                 property.baths >= baths &&
                 property.roi >= minRoi &&
                 (grade === '' || property.grade === grade) &&
-                (neighborhood === '' || property.neighborhood === neighborhood) &&
+                neighborhoodMatch &&
                 (renovation === '' || property.renovation_level === renovation);
         });
 
+        console.log(`Filtered to ${filteredProperties.length} properties`);
         displayProperties();
         addMarkersToMap();
     });

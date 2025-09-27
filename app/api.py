@@ -110,6 +110,11 @@ def score_properties():
         # Check if we have cached results
         if _scored_properties_cache is not None:
             logger.info("API: Returning cached scored properties")
+            # Log sample property structure from cache
+            if _scored_properties_cache and len(_scored_properties_cache) > 0:
+                sample_property = _scored_properties_cache[0]
+                logger.info(f"Sample cached property keys: {list(sample_property.keys())}")
+                logger.info(f"Sample cached property neighborhood value: {sample_property.get('neighborhoods', 'NOT_FOUND')}")
             return jsonify({"properties": _scored_properties_cache, "count": len(_scored_properties_cache), "cached": True})
 
         # Load for-sale properties data
@@ -119,6 +124,11 @@ def score_properties():
             os.path.join(parent_dir, "data", "for_sale_properties.csv"), is_sold=False
         )
         logger.debug(f"Loaded data with shape: {for_sale_df.shape}")
+        
+        # Log unique neighborhoods in the data
+        if "neighborhoods" in for_sale_df.columns:
+            unique_neighborhoods = for_sale_df["neighborhoods"].dropna().unique().tolist()
+            logger.info(f"Unique neighborhoods in data: {unique_neighborhoods}")
 
         # Validate data
         logger.debug("Validating data...")
@@ -130,6 +140,12 @@ def score_properties():
         logger.debug("Scoring properties...")
         results = scorer.score_properties(for_sale_df)
         logger.debug(f"Scoring completed. Results count: {len(results)}")
+        
+        # Log sample property structure
+        if results and len(results) > 0:
+            sample_property = results[0]
+            logger.info(f"Sample property keys: {list(sample_property.keys())}")
+            logger.info(f"Sample property neighborhood value: {sample_property.get('neighborhoods', 'NOT_FOUND')}")
         
         # Cache the results
         _scored_properties_cache = results

@@ -247,6 +247,7 @@ class PropertyScorer:
                 "latitude": property_data.get("latitude", 0),
                 "longitude": property_data.get("longitude", 0),
                 "primary_photo": property_data.get("primary_photo", ""),
+                "neighborhoods": property_data.get("neighborhoods", ""),
                 "neighborhood_multiplier": property_data.get(
                     "neighborhood_multiplier", 1.0
                 ),
@@ -256,6 +257,11 @@ class PropertyScorer:
             }
 
             results.append(result)
+        
+        # Log sample result for debugging
+        if results:
+            logger.info(f"Sample scored property keys: {list(results[0].keys())}")
+            logger.info(f"Sample scored property neighborhood value: {results[0].get('neighborhoods', 'NOT_FOUND')}")
 
         return results
 
